@@ -8,6 +8,10 @@ A dedicated, full-stack marketing image studio powered **exclusively by OpenRout
 
 ### 1. Interactive Marketing Chat Interface
 - **Modern Chat Stream:** Seamless ChatGPT / Midjourney style conversational interface.
+- **Reference Image Uploads:**
+  - 📎 Upload product photos, packaging, logos, or reference visuals via file picker, drag-and-drop, or direct clipboard paste (`Ctrl+V`).
+  - Interactive preview card with thumbnail, file size, and remove button before sending.
+  - User messages in the chat stream display the attached reference visual with full lightbox view.
 - **Marketing Parameters:**
   - **Aspect Ratios:** `1:1` Square (Feed/Product), `16:9` Landscape (Website Hero), `9:16` Portrait (Reels/Stories), `4:5` Social Portrait, `4:3` Standard.
   - **Visual Styles:** Commercial Studio Product, High-Converting Social Ad, Website Hero Banner, Luxury Editorial, Cyberpunk Neon Tech, 3D Isometric Render, Authentic Lifestyle/UGC.

@@ -93,7 +93,7 @@ class OpenRouterClient {
     /**
      * Synthesizes conversational context when continuing a chat on previously generated images
      */
-    public function buildConversationalPrompt(string $userPrompt, array $previousMessages, string $marketingGoal = "", string $stylePreset = ""): string {
+    public function buildConversationalPrompt(string $userPrompt, array $previousMessages, string $marketingGoal = "", string $stylePreset = "", bool $hasReference = false): string {
         // Collect past user prompts and image context to maintain continuity
         $historyPrompts = [];
         foreach ($previousMessages as $msg) {
@@ -115,17 +115,18 @@ class OpenRouterClient {
         ];
 
         $styleText = $styleModifiers[$stylePreset] ?? $styleModifiers["general"];
+        $refInstruction = $hasReference ? " [Reference visual provided by user: Incorporate the uploaded product/brand subject into the composition]." : "";
 
         // If this is continuing an existing chat thread with previous prompts
         if (count($historyPrompts) > 0) {
             $baseContext = implode(" -> ", array_slice($historyPrompts, -3));
-            $continuationPrompt = "Iterative marketing visual update. Context and prior design direction: [{$baseContext}]. Refinement instruction: {$userPrompt}. Maintain brand visual consistency while applying the modifications. Style guidelines: {$styleText}.";
+            $continuationPrompt = "Iterative marketing visual update. Context and prior design direction: [{$baseContext}].{$refInstruction} Refinement instruction: {$userPrompt}. Maintain brand visual consistency while applying the modifications. Style guidelines: {$styleText}.";
             return $continuationPrompt;
         }
 
         // First prompt in conversation
         $goalPrefix = !empty($marketingGoal) ? "[{$marketingGoal}] " : "";
-        return "{$goalPrefix}{$userPrompt}. {$styleText}. High commercial resolution, advertising aesthetic, no unwanted artifacts.";
+        return "{$goalPrefix}{$userPrompt}.{$refInstruction} {$styleText}. High commercial resolution, advertising aesthetic, no unwanted artifacts.";
     }
 
     /**
@@ -149,9 +150,11 @@ class OpenRouterClient {
         $stylePreset = (string) ($params["style_preset"] ?? "general");
         $marketingGoal = (string) ($params["marketing_goal"] ?? "Marketing Visual");
         $history = $params["history"] ?? [];
+        $referenceImage = $params["reference_image"] ?? null;
+        $hasReference = !empty($referenceImage);
 
         // Synthesize full prompt with conversation history context
-        $finalPrompt = $this->buildConversationalPrompt($prompt, $history, $marketingGoal, $stylePreset);
+        $finalPrompt = $this->buildConversationalPrompt($prompt, $history, $marketingGoal, $stylePreset, $hasReference);
 
         $payload = [
             "model" => $model,
@@ -159,6 +162,11 @@ class OpenRouterClient {
             "aspect_ratio" => $aspectRatio,
             "n" => 1
         ];
+
+        // Attach reference image if provided
+        if (!empty($referenceImage)) {
+            $payload["image"] = $referenceImage;
+        }
 
         $startTime = microtime(true);
         $ch = curl_init($this->baseUrl);

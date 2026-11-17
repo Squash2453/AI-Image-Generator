@@ -145,6 +145,57 @@ try {
                 exit;
             }
 
+            // Handle user-uploaded reference image (base64 or multipart file upload)
+            $userUploadedImagePath = null;
+            $referenceDataUri = null;
+            $uploadsDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . "uploads";
+            if (!is_dir($uploadsDir)) {
+                mkdir($uploadsDir, 0755, true);
+            }
+
+            // 1. Check for Base64 Data URI input
+            if (!empty($input["uploaded_image"]) && str_starts_with($input["uploaded_image"], "data:image/")) {
+                $rawUri = $input["uploaded_image"];
+                $parts = explode(",", $rawUri, 2);
+                if (count($parts) === 2) {
+                    $header = $parts[0];
+                    $data = base64_decode($parts[1]);
+                    if ($data !== false) {
+                        $extension = "png";
+                        if (strpos($header, "jpeg") !== false || strpos($header, "jpg") !== false) {
+                            $extension = "jpg";
+                        } elseif (strpos($header, "webp") !== false) {
+                            $extension = "webp";
+                        } elseif (strpos($header, "gif") !== false) {
+                            $extension = "gif";
+                        }
+
+                        $fileName = "ref_" . date("Ymd_His") . "_" . bin2hex(random_bytes(6)) . "." . $extension;
+                        $savedPath = $uploadsDir . DIRECTORY_SEPARATOR . $fileName;
+                        if (file_put_contents($savedPath, $data) !== false) {
+                            $userUploadedImagePath = "uploads/" . $fileName;
+                            $referenceDataUri = $rawUri;
+                        }
+                    }
+                }
+            } 
+            // 2. Check for traditional multipart $_FILES
+            elseif (isset($_FILES["reference_image"]) && $_FILES["reference_image"]["error"] === UPLOAD_ERR_OK) {
+                $tmpPath = $_FILES["reference_image"]["tmp_name"];
+                $mime = mime_content_type($tmpPath);
+                if (str_starts_with($mime, "image/")) {
+                    $origName = $_FILES["reference_image"]["name"];
+                    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION)) ?: "png";
+                    $fileName = "ref_" . date("Ymd_His") . "_" . bin2hex(random_bytes(6)) . "." . $ext;
+                    $destPath = $uploadsDir . DIRECTORY_SEPARATOR . $fileName;
+                    if (move_uploaded_file($tmpPath, $destPath)) {
+                        $userUploadedImagePath = "uploads/" . $fileName;
+                        $fileData = file_get_contents($destPath);
+                        $referenceDataUri = "data:" . $mime . ";base64," . base64_encode($fileData);
+                    }
+                }
+            }
+
             // If no chat_uuid provided, auto-create a new chat
             if (empty($chatUuid)) {
                 $chatUuid = bin2hex(random_bytes(16));
@@ -201,12 +252,12 @@ try {
             $stmtHist->execute([$chatId]);
             $history = $stmtHist->fetchAll();
 
-            // 1. Record the user message
+            // 1. Record the user message (including reference image if uploaded)
             $stmtUserMsg = $pdo->prepare("
-                INSERT INTO messages (chat_id, user_id, role, content, aspect_ratio, style_preset, model_used)
-                VALUES (?, ?, 'user', ?, ?, ?, ?)
+                INSERT INTO messages (chat_id, user_id, role, content, image_path, aspect_ratio, style_preset, model_used)
+                VALUES (?, ?, 'user', ?, ?, ?, ?, ?)
             ");
-            $stmtUserMsg->execute([$chatId, $user["id"], $prompt, $aspectRatio, $stylePreset, $model]);
+            $stmtUserMsg->execute([$chatId, $user["id"], $prompt, $userUploadedImagePath, $aspectRatio, $stylePreset, $model]);
             $userMsgId = (int) $pdo->lastInsertId();
 
             // If this is the first message in the chat, update the chat title to a concise marketing headline
@@ -226,6 +277,7 @@ try {
                 "aspect_ratio" => $aspectRatio,
                 "style_preset" => $stylePreset,
                 "marketing_goal" => $chat["marketing_goal"] ?? "Marketing Visual",
+                "reference_image" => $referenceDataUri,
                 "history" => $history
             ]);
 
@@ -275,6 +327,7 @@ try {
                     "id" => $userMsgId,
                     "role" => "user",
                     "content" => $prompt,
+                    "image_path" => $userUploadedImagePath,
                     "aspect_ratio" => $aspectRatio,
                     "style_preset" => $stylePreset,
                     "created_at" => date("Y-m-d H:i:s")

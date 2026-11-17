@@ -341,19 +341,54 @@ $csrfToken = get_csrf_token();
                         </span>
                     </div>
 
-                    <!-- Input Box -->
-                    <div class="relative flex items-end bg-slate-950 border border-slate-800 rounded-2xl shadow-xl focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition">
-                        <textarea id="prompt-input" rows="2" 
-                            placeholder="Describe your marketing visual, or ask to refine the previous image (e.g., 'Make the background darker with golden studio lighting')..." 
-                            class="w-full bg-transparent px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"></textarea>
+                    <!-- Input Box Container -->
+                    <div id="chat-input-container" class="relative flex flex-col bg-slate-950 border border-slate-800 rounded-2xl shadow-xl focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition">
                         
-                        <div class="p-2 flex items-center gap-2">
-                            <button id="send-btn" onclick="sendMessage()" 
-                                class="p-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl shadow-lg shadow-brand-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                                </svg>
+                        <!-- Attached Image Preview Bar -->
+                        <div id="attached-image-preview-bar" class="hidden px-3.5 py-2.5 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/40 rounded-t-2xl">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="relative w-11 h-11 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex-shrink-0">
+                                    <img id="attached-img-thumb" src="" alt="Attached preview" class="w-full h-full object-cover">
+                                </div>
+                                <div class="text-xs min-w-0">
+                                    <div class="font-semibold text-slate-200 truncate max-w-xs" id="attached-img-name">image.png</div>
+                                    <div class="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+                                        <span id="attached-img-size">0 KB</span>
+                                        <span class="px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 font-semibold text-[9px] border border-brand-500/30">Reference Visual Attached</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="removeAttachedImage()" class="p-1.5 text-slate-400 hover:text-red-400 transition rounded-lg hover:bg-slate-800" title="Remove attached image">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
+                        </div>
+
+                        <!-- Textarea & Action Controls -->
+                        <div class="flex items-end">
+                            <textarea id="prompt-input" rows="2" 
+                                placeholder="Describe your marketing visual, or ask to refine the previous image (e.g., 'Make the background darker with golden studio lighting')..." 
+                                class="w-full bg-transparent px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none resize-none leading-relaxed"></textarea>
+                            
+                            <div class="p-2 flex items-center gap-1.5">
+                                <!-- Hidden File Input for Image Upload -->
+                                <input type="file" id="image-upload-input" accept="image/png, image/jpeg, image/webp, image/gif" class="hidden" onchange="handleImageFileSelect(event)">
+
+                                <!-- Upload / Attach Image Button -->
+                                <button type="button" onclick="document.getElementById('image-upload-input').click()" id="attach-img-btn"
+                                    class="p-2.5 text-slate-400 hover:text-brand-300 hover:bg-slate-900 rounded-xl transition flex items-center justify-center group" title="Upload reference image / product photo">
+                                    <svg class="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+
+                                <!-- Send Button -->
+                                <button id="send-btn" onclick="sendMessage()" 
+                                    class="p-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl shadow-lg shadow-brand-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center" title="Send (Enter)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="flex items-center justify-between text-[11px] text-slate-500 px-1">
@@ -704,7 +739,8 @@ $csrfToken = get_csrf_token();
             telemetryScope: 'user',
             charts: { daily: null, models: null },
             timerInterval: null,
-            timerStart: 0
+            timerStart: 0,
+            attachedImage: null // Holds uploaded reference visual { dataUrl, name, size }
         };
 
         // Initialize Application
@@ -925,6 +961,18 @@ $csrfToken = get_csrf_token();
                 return `
                     <div class="flex items-start justify-end gap-3">
                         <div class="max-w-xl bg-brand-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-lg">
+                            ${msg.image_path ? `
+                                <div class="mb-2.5 rounded-xl overflow-hidden border border-white/20 bg-slate-950/60 shadow-inner">
+                                    <div class="px-2.5 py-1 bg-black/40 text-[10px] text-brand-200 font-semibold flex items-center justify-between border-b border-white/10">
+                                        <span class="flex items-center gap-1.5">
+                                            <svg class="w-3.5 h-3.5 text-brand-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                            <span>Reference Visual</span>
+                                        </span>
+                                        <button type="button" onclick="openLightbox('${escapeHtml(msg.image_path)}')" class="hover:underline text-[9px] text-slate-300">View Full</button>
+                                    </div>
+                                    <img src="${escapeHtml(msg.image_path)}" alt="User reference visual" class="max-h-56 w-auto max-w-full mx-auto object-contain cursor-pointer hover:opacity-95 transition" onclick="openLightbox('${escapeHtml(msg.image_path)}')">
+                                </div>
+                            ` : ''}
                             <p class="text-xs leading-relaxed whitespace-pre-wrap">${escapeHtml(msg.content)}</p>
                             <div class="mt-2 flex items-center justify-end gap-2 text-[10px] text-brand-200">
                                 <span class="bg-brand-700/60 px-1.5 py-0.5 rounded">${msg.aspect_ratio || '1:1'}</span>
@@ -983,12 +1031,72 @@ $csrfToken = get_csrf_token();
         }
 
         // ---------------------------------------------------------------------
+        // IMAGE ATTACHMENT & UPLOAD HANDLERS
+        // ---------------------------------------------------------------------
+        function handleImageFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            setAttachedImageFile(file);
+        }
+
+        function setAttachedImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast("Please choose a valid image file (PNG, JPG, WebP, GIF)", "error");
+                return;
+            }
+            if (file.size > 15 * 1024 * 1024) {
+                showToast("Image file size exceeds the 15MB limit.", "error");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const sizeFormatted = file.size > 1024 * 1024 ? 
+                    (file.size / (1024 * 1024)).toFixed(1) + ' MB' : 
+                    Math.round(file.size / 1024) + ' KB';
+
+                AppState.attachedImage = {
+                    dataUrl: dataUrl,
+                    name: file.name,
+                    size: sizeFormatted
+                };
+
+                // Show preview bar above textarea
+                document.getElementById('attached-img-thumb').src = dataUrl;
+                document.getElementById('attached-img-name').textContent = file.name;
+                document.getElementById('attached-img-size').textContent = sizeFormatted;
+                document.getElementById('attached-image-preview-bar').classList.remove('hidden');
+
+                // Visual button highlight
+                document.getElementById('attach-img-btn').classList.add('text-brand-300', 'bg-brand-500/20');
+                showToast("Reference visual attached!");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeAttachedImage() {
+            AppState.attachedImage = null;
+            const input = document.getElementById('image-upload-input');
+            if (input) input.value = '';
+            const previewBar = document.getElementById('attached-image-preview-bar');
+            if (previewBar) previewBar.classList.add('hidden');
+            const thumb = document.getElementById('attached-img-thumb');
+            if (thumb) thumb.src = '';
+            const attachBtn = document.getElementById('attach-img-btn');
+            if (attachBtn) attachBtn.classList.remove('text-brand-300', 'bg-brand-500/20');
+        }
+
+        // ---------------------------------------------------------------------
         // SEND MESSAGE & IMAGE GENERATION
         // ---------------------------------------------------------------------
         async function sendMessage() {
             const promptInput = document.getElementById('prompt-input');
             const prompt = promptInput.value.trim();
-            if (!prompt) return;
+            const attachedImg = AppState.attachedImage;
+
+            if (!prompt && !attachedImg) return;
+            const finalPrompt = prompt || "Generate a high-converting marketing creative based on this reference visual.";
 
             const model = document.getElementById('model-select').value;
             const aspectRatio = document.getElementById('aspect-ratio-select').value;
@@ -996,17 +1104,22 @@ $csrfToken = get_csrf_token();
             const sendBtn = document.getElementById('send-btn');
             const generatingIndicator = document.getElementById('generating-indicator');
 
-            // Append user message optimistically
+            // Optimistically append user message with attached image preview
             document.getElementById('empty-state').classList.add('hidden');
             const messagesList = document.getElementById('messages-list');
             messagesList.innerHTML += renderMessageBubble({
                 role: 'user',
-                content: prompt,
+                content: finalPrompt,
+                image_path: attachedImg ? attachedImg.dataUrl : null,
                 aspect_ratio: aspectRatio,
                 created_at: new Date().toISOString()
             });
 
+            // Capture attached image for payload and clear input state
+            const uploadPayloadData = attachedImg ? attachedImg.dataUrl : null;
             promptInput.value = '';
+            removeAttachedImage();
+
             sendBtn.disabled = true;
             generatingIndicator.classList.remove('hidden');
             startGeneratingTimer();
@@ -1015,10 +1128,11 @@ $csrfToken = get_csrf_token();
             try {
                 const payload = {
                     chat_uuid: AppState.currentChatUuid,
-                    prompt: prompt,
+                    prompt: finalPrompt,
                     model: model,
                     aspect_ratio: aspectRatio,
-                    style_preset: stylePreset
+                    style_preset: stylePreset,
+                    uploaded_image: uploadPayloadData
                 };
 
                 const res = await fetch('api/chat.php?action=send_message', {
@@ -1136,13 +1250,51 @@ $csrfToken = get_csrf_token();
 
         function setupPromptInputKeybindings() {
             const input = document.getElementById('prompt-input');
+            const container = document.getElementById('chat-input-container');
             if (!input) return;
+
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
                 }
             });
+
+            // Clipboard paste image support (e.g. Ctrl+V screenshot)
+            input.addEventListener('paste', (e) => {
+                const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+                if (!items) return;
+                for (let item of items) {
+                    if (item.kind === 'file' && item.type.startsWith('image/')) {
+                        const file = item.getAsFile();
+                        if (file) {
+                            setAttachedImageFile(file);
+                            showToast("Image pasted from clipboard!");
+                            break;
+                        }
+                    }
+                }
+            });
+
+            // Drag and drop image support onto input area
+            if (container) {
+                container.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    container.classList.add('border-brand-500', 'ring-1', 'ring-brand-500');
+                });
+                container.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    container.classList.remove('border-brand-500', 'ring-1', 'ring-brand-500');
+                });
+                container.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    container.classList.remove('border-brand-500', 'ring-1', 'ring-brand-500');
+                    if (e.dataTransfer.files && e.dataTransfer.files[0] && e.dataTransfer.files[0].type.startsWith('image/')) {
+                        setAttachedImageFile(e.dataTransfer.files[0]);
+                        showToast("Image attached via drag & drop!");
+                    }
+                });
+            }
         }
 
         // ---------------------------------------------------------------------
