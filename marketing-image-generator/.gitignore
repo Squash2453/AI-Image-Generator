@@ -1,0 +1,43 @@
+# ====================================================================
+# Marketing Image Studio - Git Ignore Rules
+# ====================================================================
+
+# Sensitive environment configuration files
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Generated marketing images & temporary media
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+
+# Logs & temp storage
+*.log
+logs/
+temp/
+tmp/
+
+# Database dumps & local exports
+*.sql
+*.sqlite
+
+# Test scripts and scratch files
+tests/
+test_*.php
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.gemini/

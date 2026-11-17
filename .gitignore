@@ -1,0 +1,48 @@
+# ====================================================================
+# Git Ignore Rules for Root Workspace
+# ====================================================================
+
+# Sensitive environment configuration files
+.env
+.env.local
+.env.*.local
+*.env
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Generated media and uploads
+**/uploads/*
+!**/uploads/.gitkeep
+!**/uploads/.htaccess
+Generated/
+generated/
+
+# Logs & temporary files
+*.log
+logs/
+temp/
+tmp/
+
+# Database dumps
+*.sql
+*.sqlite
+
+# Test scripts and scratch files
+**/tests/
+test_*.php
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.gemini/
